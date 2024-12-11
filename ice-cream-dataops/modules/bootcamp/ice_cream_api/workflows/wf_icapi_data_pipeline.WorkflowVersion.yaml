@@ -1,0 +1,90 @@
+workflowExternalId: wf_icapi_data_pipeline
+version: '1'
+workflowDefinition:
+  description: 'Run tasks in sequence'
+  tasks:
+    - externalId: 'icapi_assets_extractor'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'icapi_assets_extractor'
+          data: {}
+        isAsyncComplete: false
+      name: 'Ice Cream API Assets Extractor'
+      description: Extracts Asset data from the Ice Cream API
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+
+    - externalId: 'create_asset_hierarchy'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'create_asset_hierarchy'
+          concurrencyPolicy: fail
+      name: 'create_asset_hierarchy'
+      description: create_asset_hierarchy
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'icapi_assets_extractor'
+
+    - externalId: 'icapi_timeseries_extractor'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'icapi_timeseries_extractor'
+          data: { }
+        isAsyncComplete: false
+      name: 'Ice Cream API TimeSeries Extractorr'
+      description: Extracts TimeSeries data from the Ice Cream API
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+
+    - externalId: 'icapi_datapoints_extractor'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'icapi_datapoints_extractor'
+          data: { }
+        isAsyncComplete: false
+      name: 'Ice Cream API DataPoints Extractor'
+      description: Extracts DataPoints data from the Ice Cream API
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+      dependsOn:
+        - externalId: 'icapi_timeseries_extractor'
+
+    - externalId: 'icapi_ts_assets_contextualization'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'icapi_ts_assets_contextualization'
+          concurrencyPolicy: fail
+      name: 'icapi_ts_assets_contextualization'
+      description: icapi_ts_assets_contextualization
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'icapi_timeseries_extractor'
+        - externalId: 'create_asset_hierarchy'
+
+    - externalId: 'oee_timeseries'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'oee_timeseries'
+          data: { }
+        isAsyncComplete: false
+      name: 'OEE TimeSeries'
+      description: Function to calculate OEE
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+      dependsOn:
+        - externalId: 'icapi_ts_assets_contextualization'
+        - externalId: 'icapi_datapoints_extractor'
